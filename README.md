@@ -41,10 +41,11 @@ npm install prisma --save-dev            [insatll prisma and client]
 npm install @prisma/client
 npx prisma init     [This will create prisma/schema.prisma, .env, prismaconfig.ts]
 
-DATABASE_URL="postgresql://viral_admin:viral123@localhost:5432/viral_db"   [.env]
-
-
 docker run --name viral-postgres -e POSTGRES_USER=viral_admin -e POSTGRES_PASSWORD=viral123 -e POSTGRES_DB=viral_db -p 5432:5432 -d postgres:16    [To avoid database permission issues]
+
+psql -h localhost -U viral_user -d viral_db [test]
+
+DATABASE_URL="postgresql://viral_admin:viral123@localhost:5432/viral_db"   [.env]
 
 npx prisma migrate dev --name init
 npx prisma studio      [prisma studio for GUI of database]
