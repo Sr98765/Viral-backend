@@ -38,7 +38,8 @@ psql -h localhost -U viral_user -d viral_db
 
 cd backend-api
 
-npm install prisma@4 @prisma/client@4 --save-dev
+npm install prisma@4 --save-dev
+npm install @prisma/client@4
 
 
 ==  npm install prisma --save-dev            [insatll prisma and client]
