@@ -1,4 +1,13 @@
 # Viral-backend
+
+nvm install 20
+nvm use 20
+=====================
+rm -rf node_modules
+rm package-lock.json
+npm install
+======================
+
 mkdir backend
 cd backend
 
