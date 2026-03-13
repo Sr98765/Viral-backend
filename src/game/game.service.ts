@@ -1,29 +1,51 @@
-// src/game/game.service.ts
 import { Injectable } from '@nestjs/common';
-import { ProvablyFairService } from '../provably-fair/provably-fair.service';
 import { WalletService } from '../wallet/wallet.service';
+import { ProvablyFairService } from '../provably-fair/provably-fair.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class GameService {
+
   constructor(
+    private walletService: WalletService,
     private pfService: ProvablyFairService,
-    private walletService: WalletService
+    private prisma: PrismaService,
   ) {}
 
   async play(userId: number, betAmount: number, seed: string) {
-  const wallet = await this.walletService.getBalance(userId);
-  if (!wallet) throw new Error('Wallet not found');
 
-  if (wallet.balance < betAmount) throw new Error('Insufficient balance');
+    const balance = await this.walletService.getBalance(userId);
 
-  await this.walletService.withdraw(userId, betAmount);
+    if (!balance || balance.balance < betAmount) {
+      throw new Error('Insufficient balance');
+    }
 
-  const { result, hash } = this.pfService.generate(seed);
-  const won = result > 50; // simple win if >50
-  const payout = won ? betAmount * 2 : 0;
+    await this.walletService.withdraw(userId, betAmount);
 
-  if (won) await this.walletService.deposit(userId, payout);
+    const { result, hash } = this.pfService.generate(seed);
 
-  return { result, hash, won, payout };
-}
+    const won = result > 50;
+    const payout = won ? betAmount * 2 : 0;
+
+    if (won) {
+      await this.walletService.deposit(userId, payout);
+    }
+
+    await this.prisma.gameRound.create({
+      data: {
+        userId,
+        betAmount,
+        result,
+        payout,
+        hash,
+      },
+    });
+
+    return {
+      result,
+      hash,
+      won,
+      payout,
+    };
+  }
 }
