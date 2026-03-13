@@ -5,8 +5,8 @@ import { JwtService } from '@nestjs/jwt';
 @Controller('user')
 export class UserController {
   constructor(
-    private userService: UserService,
-    private jwtService: JwtService,
+    private readonly userService: UserService,
+    private readonly jwtService: JwtService,
   ) {}
 
   @Post('register')
@@ -18,7 +18,7 @@ export class UserController {
   @Post('login')
   async login(@Body() body: { email: string; password: string }) {
     const user = await this.userService.validateUser(body.email, body.password);
-    if (!user) return { statusCode: 401, message: 'Invalid credentials' };
+    if (!user) throw new Error('Invalid credentials');
 
     const token = this.jwtService.sign({ id: user.id, email: user.email });
     return { token };

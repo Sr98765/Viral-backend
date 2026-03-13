@@ -8,16 +8,37 @@ datasource db {
 }
 
 model User {
-  id       Int     @id @default(autoincrement())
-  email    String  @unique
+  id       Int      @id @default(autoincrement())
+  email    String   @unique
   password String
   wallet   Wallet?
+  gameRounds GameRound[]
 }
 
 model Wallet {
-  id        Int      @id @default(autoincrement())
-  balance   Float    @default(0)
-  userId    Int      @unique
-  user      User     @relation(fields: [userId], references: [id])
+  id      Int    @id @default(autoincrement())
+  balance Float  @default(0)
+  userId  Int    @unique
+  user    User   @relation(fields: [userId], references: [id])
+  transactions Transaction[]
+}
+
+model Transaction {
+  id       Int     @id @default(autoincrement())
+  userId   Int
+  amount   Float
+  type     String
   createdAt DateTime @default(now())
+  wallet   Wallet   @relation(fields: [userId], references: [userId])
+}
+
+model GameRound {
+  id       Int      @id @default(autoincrement())
+  userId   Int
+  betAmount Float
+  result    Float
+  payout    Float
+  hash      String
+  createdAt DateTime @default(now())
+  user      User    @relation(fields: [userId], references: [id])
 }

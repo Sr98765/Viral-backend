@@ -1,30 +1,59 @@
+// src/wallet/wallet.service.ts
 import { Injectable } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class WalletService {
+  constructor(private readonly prisma: PrismaService) {}
+
   async getBalance(userId: number) {
-    return prisma.wallet.findUnique({ where: { userId } });
+    return this.prisma.wallet.findUnique({
+      where: { userId },
+    });
+  }
+
+  async getTransactions(userId: number) {
+    return this.prisma.transaction.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   async deposit(userId: number, amount: number) {
-    return prisma.wallet.upsert({
+    const wallet = await this.prisma.wallet.upsert({
       where: { userId },
       update: { balance: { increment: amount } },
       create: { userId, balance: amount },
     });
+
+    await this.prisma.transaction.create({
+      data: {
+        userId,
+        amount,
+        type: 'DEPOSIT',
+      },
+    });
+
+    return wallet;
   }
 
   async withdraw(userId: number, amount: number) {
-    const wallet = await prisma.wallet.findUnique({ where: { userId } });
-    if (!wallet) throw new Error('Wallet not found');
-    if (wallet.balance < amount) throw new Error('Insufficient balance');
+    const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
+    if (!wallet || wallet.balance < amount) throw new Error('Insufficient balance');
 
-    return prisma.wallet.update({
+    await this.prisma.wallet.update({
       where: { userId },
       data: { balance: { decrement: amount } },
     });
+
+    await this.prisma.transaction.create({
+      data: {
+        userId,
+        amount,
+        type: 'WITHDRAW',
+      },
+    });
+
+    return wallet;
   }
 }

@@ -1,19 +1,18 @@
 import { Module } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';
-import { JwtModule } from '@nestjs/jwt'; // ✅ import JwtModule
-import { PassportModule } from '@nestjs/passport';
+import { PrismaModule } from '../prisma/prisma.module';
+import { JwtModule } from '@nestjs/jwt'; // <-- import this
 
 @Module({
   imports: [
-    PassportModule,
+    PrismaModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'your_secret_key', // put in .env for production
+      secret: process.env.JWT_SECRET || 'defaultSecret', // same as in your AuthModule
       signOptions: { expiresIn: '1h' },
     }),
   ],
-  controllers: [UserController],
   providers: [UserService],
-  exports: [UserService], // if Wallet or other modules need it
+  controllers: [UserController],
 })
 export class UserModule {}

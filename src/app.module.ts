@@ -1,17 +1,24 @@
+// src/app.module.ts
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
 import { WalletModule } from './wallet/wallet.module';
 import { AuthModule } from './auth/auth.module';
-import { ProvablyFairService } from './provably-fair/provably-fair.service';
-import { ProvablyFairController } from './provably-fair/provably-fair.controller';
-import { GameService } from './game/game.service';
-import { GameController } from './game/game.controller';
+import { GameModule } from './game/game.module';
+import { ProvablyFairModule } from './provably-fair/provably-fair.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
-  imports: [UserModule, WalletModule, AuthModule],
-  controllers: [AppController, ProvablyFairController, GameController],
-  providers: [AppService, ProvablyFairService, GameService],
+  imports: [
+    UserModule,
+    WalletModule,
+    AuthModule,
+    GameModule,
+    ProvablyFairModule,
+    PrismaModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}
