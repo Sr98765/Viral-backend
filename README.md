@@ -34,6 +34,11 @@ psql
 CREATE DATABASE viral_db;
 CREATE USER viral_user WITH PASSWORD 'viral123';          [database user and password]
 GRANT ALL PRIVILEGES ON DATABASE viral_db TO viral_user;     [Giving permissions to access database]
+
+\c viral_db
+GRANT ALL ON SCHEMA public TO viral_user;
+
+
 \l [list databases to check]
 \q [exit from postgres]
 exit [exit from postgres user]
@@ -62,8 +67,99 @@ psql -h localhost -U viral_user -d viral_db [test]
 
 DATABASE_URL="postgresql://viral_admin:viral123@localhost:5432/viral_db"   [.env]
 
+npx prisma db push
+
 npx prisma migrate dev --name init
+
+sudo su postgres
+psql
+ALTER USER viral_user CREATEDB;
+
+
+
 npx prisma studio      [prisma studio for GUI of database]
+
+npx nest generate service prisma
+=================
+prisma.service.ts
+=================
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { PrismaClient } from '@prisma/client';
+
+@Injectable()
+export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  
+  // This connects to the database when the app starts
+  async onModuleInit() {
+    await this.$connect();
+  }
+
+  // This closes the connection when the app stops
+  async onModuleDestroy() {
+    await this.$disconnect();
+  }
+}
+==============================
+npx nest generate controller users
+=====
+src/user/user.controller.ts
+=============
+import { Controller, Get, Post, Body } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+
+@Controller('users')
+export class UsersController {
+  constructor(private readonly prisma: PrismaService) {}
+
+  // 1. Create a user (POST http://localhost:3000/users)
+  @Post()
+  async createUser(@Body() data: { email: string; name?: string }) {
+    return this.prisma.user.create({
+      data: {
+        email: data.email,
+        name: data.name,
+      },
+    });
+  }
+
+  // 2. Get all users (GET http://localhost:3000/users)
+  @Get()
+  async getAllUsers() {
+    return this.prisma.user.findMany();
+  }
+}
+=================
+Make sure Prisma is in app.module.ts
+Open src/app.module.ts and ensure PrismaService is in the providers list:
+typescript
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { PrismaService } from './prisma/prisma.service';
+import { UsersController } from './users/users.controller';
+
+@Module({
+  imports: [],
+  controllers: [AppController, UsersController],
+  providers: [AppService, PrismaService],
+})
+export class AppModule {}
+======================================================================================
+npm run start:dev
+
+
+
+
+curl -X POST http://localhost:3000/users   -H "Content-Type: application/json"   -d '{"email": "sunil@viral.com", "name": "Viral User"}'
+
+
+
+
+
+
+
+
+
 
 ====================================================================================================================
 cd /workspaces/Viral-backend/backend/backend-api
