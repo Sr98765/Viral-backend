@@ -158,8 +158,8 @@ curl -X POST http://localhost:3000/users   -H "Content-Type: application/json"  
 
 
 
-
-
+npx run start:dev
+npx prisma studio
 
 
 
@@ -167,7 +167,204 @@ curl -X POST http://localhost:3000/users   -H "Content-Type: application/json"  
 
 ====================================================================================================================
 
-====================================================================================
+====================================================================================================================
+                             auth-service
+=====================================================================================================================  
+
+
+
+nvm use 22
+node -v
+==================
+cd /workspaces/backend-revise/backend
+ls
+==================
+nest new auth-service          [npm]
+==================
+[Install Auth dependencies]
+npm install @nestjs/jwt @nestjs/passport passport passport-jwt bcrypt
+npm install -D @types/passport-jwt @types/bcrypt
+=======================================================================
+prisma
+---------
+npm install prisma@4 --save-dev
+npm install @prisma/client@4
+
+npx prisma init
+=============================
+
+DATABASE_URL="postgresql://viral_user:viral123@localhost:5432/viral_db"               [.env]
+
+========================
+[prisma/schema.prisma]
+--------------------------
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+}
+
+====================================================
 npx prisma generate
-npx run start:dev
+======================
+
+npx nest g service prisma
+--------------------
+[src/prisma/prisma.service.ts]
+
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common'
+import { PrismaClient } from '@prisma/client'
+
+@Injectable()
+export class PrismaService extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy {
+
+  async onModuleInit() {
+    await this.$connect()
+  }
+
+  async onModuleDestroy() {
+    await this.$disconnect()
+  }
+}
+============================
+npx nest g module auth
+npx nest g service auth
+npx nest g controller auth
+-----------------------
+[src/auth/auth.module.ts]
+
+import { Module } from '@nestjs/common'
+import { JwtModule } from '@nestjs/jwt'
+import { AuthService } from './auth.service'
+import { AuthController } from './auth.controller'
+import { PrismaService } from '../prisma/prisma.service'
+
+@Module({
+  imports: [
+    JwtModule.register({
+      secret: 'viral_secret',
+      signOptions: { expiresIn: '1h' },
+    }),
+  ],
+  providers: [AuthService, PrismaService],
+  controllers: [AuthController],
+})
+export class AuthModule {}
+
+===================================
+[src/auth/auth.service.ts]
+
+import { Injectable } from '@nestjs/common'
+import { PrismaService } from '../prisma/prisma.service'
+import { JwtService } from '@nestjs/jwt'
+import * as bcrypt from 'bcrypt'
+
+@Injectable()
+export class AuthService {
+
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService,
+  ) {}
+
+  async register(email: string, password: string) {
+
+    const hashed = await bcrypt.hash(password, 10)
+
+    const user = await this.prisma.user.create({
+      data: {
+        email,
+        password: hashed,
+      },
+    })
+
+    return { id: user.id, email: user.email }
+  }
+
+  async login(email: string, password: string) {
+
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    })
+
+    if (!user) throw new Error('User not found')
+
+    const valid = await bcrypt.compare(password, user.password)
+
+    if (!valid) throw new Error('Invalid password')
+
+    const token = this.jwtService.sign({
+      id: user.id,
+      email: user.email,
+    })
+
+    return { token }
+  }
+}
+==============================
+[src/auth/auth.controller.ts]
+
+import { Controller, Post, Body } from '@nestjs/common'
+import { AuthService } from './auth.service'
+
+@Controller('auth')
+export class AuthController {
+
+  constructor(private authService: AuthService) {}
+
+  @Post('register')
+  register(@Body() body: { email: string; password: string }) {
+    return this.authService.register(body.email, body.password)
+  }
+
+  @Post('login')
+  login(@Body() body: { email: string; password: string }) {
+    return this.authService.login(body.email, body.password)
+  }
+
+}
+======================================
+
+[src/main.ts]
+
+async function bootstrap() {
+
+  const app = await NestFactory.create(AppModule)
+
+  app.enableCors()
+
+  await app.listen(3001)
+
+}
+bootstrap()
+=============================
+
+npm run start:dev
+npx prisma studio
+==========================
+[Register]
+
+curl -X POST http://localhost:3001/auth/register \
+-H "Content-Type: application/json" \
+-d '{"email":"test@viral.com","password":"123456"}'
+
+[Login]
+
+curl -X POST http://localhost:3001/auth/login \
+-H "Content-Type: application/json" \
+-d '{"email":"test@viral.com","password":"123456"}'
+
+===========================================================================================================================================
+
 
