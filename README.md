@@ -179,7 +179,8 @@ node -v
 cd /workspaces/backend-revise/backend
 ls
 ==================
-nest new auth-service          [npm]
+nest new auth-service [npm]
+cd auth-service
 ==================
 [Install Auth dependencies]
 npm install @nestjs/jwt @nestjs/passport passport passport-jwt bcrypt
@@ -193,7 +194,7 @@ npm install @prisma/client@4
 npx prisma init
 =============================
 
-DATABASE_URL="postgresql://viral_user:viral123@localhost:5432/viral_db"               [.env]
+DATABASE_URL="postgresql://viral_user:viral123@localhost:5432/viral_db"             [.env]
 
 ========================
 [prisma/schema.prisma]
@@ -338,18 +339,19 @@ export class AuthController {
 
 [src/main.ts]
 
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+
 async function bootstrap() {
-
   const app = await NestFactory.create(AppModule)
-
   app.enableCors()
-
   await app.listen(3001)
-
 }
 bootstrap()
-=============================
 
+=============================
+npx prisma generate
+npx prisma migrate dev --name init
 npm run start:dev
 npx prisma studio
 ==========================
