@@ -136,7 +136,7 @@ export class UsersController {
 =================
 Make sure Prisma is in app.module.ts
 Open src/app.module.ts and ensure PrismaService is in the providers list:
-typescript
+
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
