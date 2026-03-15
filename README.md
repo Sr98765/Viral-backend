@@ -1,11 +1,8 @@
 # Viral-backend
 
-nvm install 20
-nvm use 20
+nvm install 22
 =====================
-rm -rf node_modules
-rm package-lock.json
-npm install
+nvm use 22
 ======================
 
 mkdir backend
@@ -36,8 +33,7 @@ CREATE USER viral_user WITH PASSWORD 'viral123';          [database user and pas
 GRANT ALL PRIVILEGES ON DATABASE viral_db TO viral_user;     [Giving permissions to access database]
 
 \c viral_db
-GRANT ALL ON SCHEMA public TO viral_user;
-
+GRANT ALL PRIVILEGES ON SCHEMA public TO viral_user;
 
 \l [list databases to check]
 \q [exit from postgres]
@@ -45,7 +41,7 @@ exit [exit from postgres user]
 
 [Test Login]
 psql -h localhost -U viral_user -d viral_db 
-
+(Enter password)
 
 ======================================================
 ==Prisma==
@@ -60,24 +56,34 @@ npm install @prisma/client@4
 npm install @prisma/client  ======
 
 npx prisma init     [This will create prisma/schema.prisma, .env, prismaconfig.ts]
+========================================================================================
 
-docker run --name viral-postgres -e POSTGRES_USER=viral_admin -e POSTGRES_PASSWORD=viral123 -e POSTGRES_DB=viral_db -p 5432:5432 -d postgres:16    [To avoid database permission issues]
+DATABASE_URL="postgresql://viral_user:viral123@localhost:5432/viral_db"  [.env]
 
-psql -h localhost -U viral_user -d viral_db [test]
+======================
+[In schema.prisma]
 
-DATABASE_URL="postgresql://viral_admin:viral123@localhost:5432/viral_db"   [.env]
-
-npx prisma db push
-
-npx prisma migrate dev --name init
+model User {
+  id       Int      @id @default(autoincrement())
+  email    String   @unique
+  password String?
+}
+======================
 
 sudo su postgres
 psql
 ALTER USER viral_user CREATEDB;
 
+npx prisma generate
+(or)
+npx prisma db push
 
+npx prisma migrate dev --name init
 
 npx prisma studio      [prisma studio for GUI of database]
+===========================================================================================================================================================================
+===========================================================================================================================================================================
+
 
 npx nest generate service prisma
 =================
@@ -117,7 +123,6 @@ export class UsersController {
     return this.prisma.user.create({
       data: {
         email: data.email,
-        name: data.name,
       },
     });
   }
@@ -150,7 +155,7 @@ npm run start:dev
 
 
 
-curl -X POST http://localhost:3000/users   -H "Content-Type: application/json"   -d '{"email": "sunil@viral.com", "name": "Viral User"}'
+curl -X POST http://localhost:3000/users   -H "Content-Type: application/json"   -d '{"email": "user1@viral.com", "name": "Viral User"}'
 
 
 
