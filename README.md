@@ -52,9 +52,6 @@ npm install prisma@4 --save-dev
 npm install @prisma/client@4
 
 
-==  npm install prisma --save-dev            [insatll prisma and client]
-npm install @prisma/client  ======
-
 npx prisma init     [This will create prisma/schema.prisma, .env, prismaconfig.ts]
 ========================================================================================
 
@@ -106,10 +103,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 }
 ==============================
+
+
 npx nest generate controller users
-=====
+============================
 src/user/user.controller.ts
-=============
+================================
 import { Controller, Get, Post, Body } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -167,76 +166,7 @@ curl -X POST http://localhost:3000/users   -H "Content-Type: application/json"  
 
 
 ====================================================================================================================
-cd /workspaces/Viral-backend/backend/backend-api
 
-nest g module user                    [Generate User module, service, controller]
-nest g service user
-nest g controller user      
-
-npm install bcrypt jsonwebtoken                [Install authentication dependencies] [bcrypt → hashes passwords, jsonwebtoken → creates JWT tokens]
-npm install @types/bcrypt @types/jsonwebtoken --save-dev          
-
-
-=========================
-src/user/user.service.ts
-=========================
-import { Injectable } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
-import * as bcrypt from 'bcrypt';
-
-const prisma = new PrismaClient();
-
-@Injectable()
-export class UserService {
-  async register(email: string, password: string) {
-    const hashedPassword = await bcrypt.hash(password, 10);
-    return prisma.user.create({
-      data: { email, password: hashedPassword },
-    });
-  }
-
-  async findByEmail(email: string) {
-    return prisma.user.findUnique({ where: { email } });
-  }
-
-  async validateUser(email: string, password: string) {
-    const user = await this.findByEmail(email);
-    if (!user) return null;
-
-    const isValid = await bcrypt.compare(password, user.password);
-    return isValid ? user : null;
-  }
-}
-
-=============================
-src/user/user.controller.ts
-=============================
-import { Controller, Post, Body } from '@nestjs/common';
-import { UserService } from './user.service';
-import * as jwt from 'jsonwebtoken';
-
-@Controller('user')
-export class UserController {
-  constructor(private readonly userService: UserService) {}
-
-  @Post('register')
-  async register(@Body() body: { email: string; password: string }) {
-    const user = await this.userService.register(body.email, body.password);
-    return { id: user.id, email: user.email };
-  }
-
-  @Post('login')
-  async login(@Body() body: { email: string; password: string }) {
-    const user = await this.userService.validateUser(body.email, body.password);
-    if (!user) return { error: 'Invalid credentials' };
-
-    const token = jwt.sign({ id: user.id, email: user.email }, 'SECRET_KEY', {
-      expiresIn: '1h',
-    });
-
-    return { token };
-  }
-}
 ====================================================================================
 npx prisma generate
 npx run start:dev
