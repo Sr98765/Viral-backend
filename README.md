@@ -368,5 +368,262 @@ curl -X POST http://localhost:3001/auth/login \
 -d '{"email":"test@viral.com","password":"123456"}'
 
 ===========================================================================================================================================
+====================================================================================================================
+                             Wallet-service
+=====================================================================================================================  
 
 
+
+nvm use 22
+node -v
+==================
+cd /workspaces/backend-revise/backend
+ls
+==================
+nest new wallet-service [npm]
+cd wallet-service
+==========================
+
+npm install @nestjs/jwt @nestjs/passport passport passport-jwt bcrypt
+npm install -D @types/passport-jwt @types/bcrypt
+npm install prisma@4 --save-dev
+npm install @prisma/client@4
+
+npx prisma init
+
+======================================
+
+DATABASE_URL="postgresql://viral_user:viral123@localhost:5432/viral_db"          [.env]
+
+==========================================
+ [prisma/schema.prisma]
+ 
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id       Int      @id @default(autoincrement())
+  email    String   @unique
+  password String
+  wallet   Wallet?
+}
+
+model Wallet {
+  id      Int    @id @default(autoincrement())
+  balance Float  @default(0)
+  userId  Int    @unique
+  user    User   @relation(fields: [userId], references: [id])
+  transactions Transaction[]
+}
+
+model Transaction {
+  id       Int     @id @default(autoincrement())
+  userId   Int
+  amount   Float
+  type     String
+  createdAt DateTime @default(now())
+  wallet   Wallet   @relation(fields: [userId], references: [userId])
+}
+
+==============================================================================================
+npx prisma generate
+=================================
+
+npx nest g service prisma
+-------------------------------
+[src/prisma/prisma.service.ts]
+
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common'
+import { PrismaClient } from '@prisma/client'
+
+@Injectable()
+export class PrismaService extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy {
+
+  async onModuleInit() {
+    await this.$connect()
+  }
+
+  async onModuleDestroy() {
+    await this.$disconnect()
+  }
+}
+=====================================================================
+
+npx nest g module wallet
+npx nest g service wallet
+npx nest g controller wallet
+--------------------------------------
+[src/wallet/wallet.module.ts]
+
+import { Module } from '@nestjs/common'
+import { JwtModule } from '@nestjs/jwt'
+import { WalletService } from './wallet.service'
+import { WalletController } from './wallet.controller'
+import { PrismaService } from '../prisma/prisma.service'
+
+@Module({
+  imports: [
+    JwtModule.register({
+      secret: 'viral_secret', // must match Auth service
+      signOptions: { expiresIn: '1h' },
+    }),
+  ],
+  providers: [WalletService, PrismaService],
+  controllers: [WalletController],
+})
+export class WalletModule {}
+
+========================================================================
+
+[src/wallet/wallet.service.ts]
+
+import { Injectable } from '@nestjs/common'
+import { PrismaService } from '../prisma/prisma.service'
+import { JwtService } from '@nestjs/jwt'
+
+@Injectable()
+export class WalletService {
+
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService
+  ) {}
+
+  async getBalance(userId: number) {
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { userId }
+    })
+    return { balance: wallet?.balance || 0 }
+  }
+
+  async deposit(userId: number, amount: number) {
+    const wallet = await this.prisma.wallet.upsert({
+      where: { userId },
+      update: { balance: { increment: amount } },
+      create: { userId, balance: amount }
+    })
+
+    await this.prisma.transaction.create({
+      data: { userId, type: 'deposit', amount }
+    })
+
+    return { balance: wallet.balance }
+  }
+
+  async withdraw(userId: number, amount: number) {
+    const wallet = await this.prisma.wallet.findUnique({ where: { userId } })
+    if (!wallet || wallet.balance < amount) throw new Error('Insufficient balance')
+
+    const updated = await this.prisma.wallet.update({
+      where: { userId },
+      data: { balance: { decrement: amount } }
+    })
+
+    await this.prisma.transaction.create({
+      data: { userId, type: 'withdraw', amount }
+    })
+
+    return { balance: updated.balance }
+  }
+}
+=========================================================================
+
+[src/wallet/wallet.controller.ts]
+
+import { Controller, Get, Post, Body, Headers } from '@nestjs/common'
+import { WalletService } from './wallet.service'
+import { JwtService } from '@nestjs/jwt'
+
+@Controller('wallet')
+export class WalletController {
+
+  constructor(
+    private walletService: WalletService,
+    private jwtService: JwtService
+  ) {}
+
+  private getUserId(authHeader: string) {
+    if (!authHeader) throw new Error('No auth header')
+    const token = authHeader.split(' ')[1]
+    const decoded: any = this.jwtService.verify(token, { secret: 'viral_secret' })
+    return decoded.id
+  }
+
+  @Get('balance')
+  getBalance(@Headers('authorization') auth: string) {
+    const userId = this.getUserId(auth)
+    return this.walletService.getBalance(userId)
+  }
+
+  @Post('deposit')
+  deposit(@Headers('authorization') auth: string, @Body() body: { amount: number }) {
+    const userId = this.getUserId(auth)
+    return this.walletService.deposit(userId, body.amount)
+  }
+
+  @Post('withdraw')
+  withdraw(@Headers('authorization') auth: string, @Body() body: { amount: number }) {
+    const userId = this.getUserId(auth)
+    return this.walletService.withdraw(userId, body.amount)
+  }
+}
+==================================================================================
+
+[src/main.ts]
+
+import { NestFactory } from '@nestjs/core'
+import { AppModule } from './app.module'
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule)
+  app.enableCors()
+  await app.listen(3002)
+}
+bootstrap()
+==========================================
+
+npx prisma generate
+npx prisma migrate dev --name init
+npm run start:dev
+npx prisma studio
+
+========================================
+[Register]
+curl -X POST http://localhost:3001/auth/register \
+-H "Content-Type: application/json" \
+-d '{"email":"test@viral.com","password":"123456"}'
+
+[Login]
+curl -X POST http://localhost:3001/auth/login \
+-H "Content-Type: application/json" \
+-d '{"email":"test@viral.com","password":"123456"}'
+
+[Balance]
+curl -X GET http://localhost:3002/wallet/balance \
+-H "Authorization: Bearer JWT_TOKEN"
+
+[Deposit]
+curl -X POST http://localhost:3002/wallet/deposit \
+-H "Authorization: Bearer JWT_TOKEN" \
+-H "Content-Type: application/json" \
+-d '{"amount":100}'
+
+[Withdraw]
+curl -X POST http://localhost:3002/wallet/withdraw \
+-H "Authorization: Bearer JWT_TOKEN" \
+-H "Content-Type: application/json" \
+-d '{"amount":50}'
+
+
+================================================================================================================
+================================================================================================================
